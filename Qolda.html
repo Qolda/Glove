@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+   <meta charset="utf-8" />
+   <meta name="viewport" content="width=device-width,initial-scale=1" />
+   <title>Qolda Glove — Smart Alarm (PRO)</title>
+
+   <!-- Chart.js -->
+   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+   <!-- TensorFlow.js (опционально) -->
+   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.12.0/dist/tf.min.js"></script>
+
+   <style>
+      :root {
+         --bg: #071026;
+         --card: #0b1220;
+         --accent: #06b6d4;
+         --accent2: #22c55e;
+         --muted: #9aa6b2;
+         --glass: rgba(255, 255, 255, 0.03)
+      }
+
+      * {
+         box-sizing: border-box
+      }
+
+      body {
+         margin: 0;
+         font-family: Inter, system-ui, Arial;
+         background: linear-gradient(180deg, var(--bg), #05111b);
+         color: #e6eef6
+      }
+
+      .wrap {
+         max-width: 1100px;
+         margin: 20px auto;
+         padding: 16px
+      }
+
+      header {
+         display: flex;
+         align-items: center;
+         justify-content: space-between;
+         gap: 12px
+      }
+
+      .brand {
+         display: flex;
+         gap: 12px;
+         align-items: center
+      }
+
+      .logo {
+         width: 56px;
+         height: 56px;
+         border-radius: 10px;
+         background: linear-gradient(135deg, var(--accent2), var(--accent));
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         font-weight: 800;
+         color: #021
+      }
+
+      h1 {
+         margin: 0;
+         font-size: 18px
+      }
+
+      .subtitle {
+         color: var(--muted);
+         font-size: 13px
+      }
+
+      .card {
+         background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+         border-radius: 12px;
+         padding: 12px;
+         box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6);
+         border: 1px solid rgba(255, 255, 255, 0.03)
+      }
+
+      .grid {
+         display: grid;
+         grid-template-columns: 1fr 380px;
+         gap: 14px;
+         margin-top: 14px
+      }
+
+      .clock {
+         font-size: 48px;
+         font-weight: 700;
+         text-align: center;
+         padding: 18px;
+         border-radius: 10px;
+         background: linear-gradient(90deg, rgba(255, 255, 255, 0.01), transparent)
+      }
+
+      .row {
+         display: flex;
+         gap: 8px;
+         align-items: center;
+         flex-wrap: wrap;
+         justify-content: center;
+         margin-top: 10px
+      }
+
+      button {
+         padding: 9px 12px;
+         border-radius: 10px;
+         border: none;
+         background: var(--glass);
+         color: inherit;
+         cursor: pointer;
+         font-weight: 600
+      }
+
+      button.primary {
+         background: linear-gradient(90deg, var(--accent), var(--accent2));
+         color: #012
+      }
+
+      input[type="time"],
+      input[type="number"],
+      select {
+         padding: 8px;
+         border-radius: 8px;
+         border: none;
+         background: rgba(255, 255, 255, 0.02);
+         color: inherit
+      }
+
+      .ai-box {
+         margin-top: 12px;
+         padding: 10px;
+         border-radius: 10px;
+         background: rgba(0, 0, 0, 0.12);
+         color: var(--muted);
+         transition: background .25s
+      }
+
+      .ai-box.speaking {
+         background: linear-gradient(90deg, rgba(6, 182, 212, 0.08), rgba(34, 197, 94, 0.06))
+      }
+
+      .progress {
+         height: 8px;
+         background: rgba(255, 255, 255, 0.03);
+         border-radius: 8px;
+         margin-top: 10px;
+         overflow: hidden
+      }
+
+      .progress>i {
+         display: block;
+         height: 100%;
+         width: 0;
+         background: linear-gradient(90deg, var(--accent), var(--accent2));
+         transition: width .6s
+      }
+
+      .log {
+         height: 220px;
+         overflow: auto;
+         padding: 10px;
+         background: rgba(0, 0, 0, 0.12);
+         border-radius: 8px;
+         font-family: monospace;
+         font-size: 13px;
+         white-space: pre-wrap
+      }
+
+      .status-pill {
+         padding: 6px 8px;
+         border-radius: 999px;
+         background: rgba(255, 255, 255, 0.02);
+         font-weight: 700
+      }
+
+      .small {
+         padding: 6px 8px;
+         font-size: 13px
+      }
+
+      .chart {
+         height: 200px
+      }
+
+      footer {
+         margin-top: 16px;
+         text-align: center;
+         color: var(--muted);
+         font-size: 13px
+      }
+
+      .chat-container {
+         margin-top: 12px;
+         background: rgba(0, 0, 0, 0.12);
+         border-radius: 8px;
+         padding: 10px
+      }
+
+      .chat-messages {
+         height: 180px;
+         overflow-y: auto;
+         margin-bottom: 10px;
+         padding: 5px;
+         display: flex;
+         flex-direction: column;
+         gap: 6px
+      }
+
+      .chat-input {
+         display: flex;
+         gap: 8px
+      }
+
+      .chat-input input {
+         flex: 1;
+         padding: 8px;
+         border-radius: 8px;
+         border: none;
+         background: rgba(255, 255, 255, 0.02);
+         color: inherit
+      }
+
+      .message {
+         margin: 0;
+         padding: 8px;
+         border-radius: 8px;
+         max-width: 85%
+      }
+
+      .user-message {
+         background: rgba(6, 182, 212, 0.12);
+         margin-left: auto;
+         text-align: right
+      }
+
+      .ai-message {
+         background: rgba(34, 197, 94, 0.12);
+         margin-right: auto;
+         text-align: left
+      }
+
+      @media (max-width:960px) {
+         .grid {
+            grid-template-columns: 1fr
+         }
+
+         .clock {
+            font-size: 40px
+         }
+      }
+   </style>
+</head>
+
+<body>
+   <div class="wrap">
+      <header>
+         <div class="brand">
+            <div class="logo">QG</div>
+            <div>
+               <h1 data-i18n="title">Qolda Glove — Smart Alarm</h1>
+               <div class="subtitle" data-i18n="subtitle">Реабилитационный будильник — веб-интерфейс</div>
+            </div>
+         </div>
+
+         <div style="display:flex;gap:10px;align-items:center">
+            <select id="lang" class="small" aria-label="Language">
+               <option value="ru">Русский</option>
+               <option value="en">English</option>
+            </select>
+            <div class="status-pill" id="connState" data-i18n="not_connected">Не подключено</div>
+            <button id="btnConnect" class="small">Подключить</button>
+         </div>
+      </header>
+
+      <div class="grid">
+         <div>
+            <div class="card">
+               <div class="clock" id="clock">--:--</div>
+
+               <div class="row">
+                  <button id="btnSetNow" class="small" data-i18n="set_now">+1 мин</button>
+                  <button id="btnAISuggest" class="small" data-i18n="ai_suggest">AI совет</button>
+                  <button id="btnDemo" class="small" data-i18n="demo">Демо 10s</button>
+               </div>
+
+               <div class="row" style="margin-top:12px;">
+                  <input id="alarmTime" type="time" />
+                  <label style="color:var(--muted)"><input id="chkServo" type="checkbox" checked /> <span
+                        data-i18n="servo">Сервопривод</span></label>
+               </div>
+
+               <div style="text-align:center;margin-top:12px">
+                  <button id="setAlarm" class="primary" data-i18n="set_alarm">Установить будильник</button>
+                  <button id="cancelAlarm" style="display:none;" class="small"
+                     data-i18n="cancel_alarm">Отменить</button>
+               </div>
+
+               <div class="ai-box" id="aiBox">ИИ: готов.</div>
+               <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+            </div>
+
+            <div class="card" style="margin-top:12px">
+               <h3 data-i18n="scenarios_title">Сценарии</h3>
+               <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="small" data-scenario="soft">Мягкий старт</button>
+                  <button class="small" data-scenario="strong">Интенсивный</button>
+                  <button class="small" data-scenario="therapy">Терапевтический</button>
+               </div>
+
+               <div style="margin-top:10px">
+                  <label style="color:var(--muted)">Создать сценарий:</label>
+                  <div class="row" style="justify-content:flex-start">
+                     <select id="componentSelect" class="small">
+                        <option value="SERVO">Servo</option>
+                        <option value="VIBE">Vibration</option>
+                        <option value="HEAT">Heater</option>
+                     </select>
+                     <input id="durationInput" type="number" class="small" placeholder="ms" value="2000" />
+                     <button id="addStep" class="small">Добавить</button>
+                     <button id="runScenario" class="primary small">Запустить</button>
+                     <button id="saveScenario" class="small">Сохранить</button>
+                  </div>
+                  <div id="scenarioList" style="margin-top:8px;color:var(--muted)"></div>
+               </div>
+            </div>
+
+            <div class="card" style="margin-top:12px">
+               <h3 data-i18n="history_title">История пробуждений</h3>
+               <div class="chart" style="height:220px;"><canvas id="wakeChart"></canvas></div>
+               <div class="chart" style="height:140px;margin-top:8px;"><canvas id="telemetryChart"></canvas></div>
+               <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
+                  <button id="range7" class="small">7d</button>
+                  <button id="range30" class="small">30d</button>
+                  <button id="rangeAll" class="small">All</button>
+               </div>
+            </div>
+         </div>
+
+         <div>
+            <div class="card">
+               <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                     <div style="font-weight:700" data-i18n="device">Устройство</div>
+                     <div id="deviceName" style="color:var(--muted)">Arduino: —</div>
+                  </div>
+                  <div style="text-align:right">
+                     <div style="font-size:13px;color:var(--muted)" data-i18n="status">Статус</div>
+                     <div id="deviceStatus" style="font-weight:800;color:var(--muted)">—</div>
+                  </div>
+               </div>
+
+               <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+                  <button id="btnTest" class="small">Тест сигнал</button>
+                  <button id="btnReset" class="small">Сброс истории</button>
+               </div>
+            </div>
+
+            <div class="card" style="margin-top:12px">
+               <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div style="font-weight:700" data-i18n="log_title">Лог</div>
+                  <div id="now" style="color:var(--muted)"></div>
+               </div>
+               <div class="log" id="log"></div>
+               <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+                  <div class="status-pill" id="stServo">Servo: —</div>
+               </div>
+            </div>
+
+            <div class="card" style="margin-top:12px">
+               <h3>AI Ассистент</h3>
+
+               <div class="chat-container">
+                  <div class="chat-messages" id="chatMessages">
+                     <div class="message ai-message">Ассистент: Здравствуйте! Я ваш помощник по системе Qolda Glove.
+                        Спросите меня о состоянии системы, настройках будильника или работе перчатки.</div>
+                  </div>
+                  <div class="chat-input">
+                     <input type="text" id="chatInput" placeholder="Задайте вопрос...">
+                     <button id="sendMessage" class="small">Отправить</button>
+                  </div>
+               </div>
+            </div>
+
+         </div>
+      </div>
+
+      <footer>Работает в Chrome/Edge (Chromium). Разреши доступ к USB при запросе.</footer>
+   </div>
+
+   <script>
+      const I18N = {
+         ru: {
+            title: 'Qolda Glove — Smart Alarm', subtitle: 'Реабилитационный будильник — веб-интерфейс',
+            not_connected: 'Не подключено', connected: 'Подключено', connectBtn: 'Подключить', disconnectBtn: 'Отключить',
+            set_now: '+1 мин', ai_suggest: 'AI совет', demo: 'Демо 10s', servo: 'Сервопривод',
+            set_alarm: 'Установить будильник', cancel_alarm: 'Отменить', scenarios_title: 'Сценарии',
+            history_title: 'История пробуждений', device: 'Устройство', status: 'Статус',
+            log_title: 'Лог', telemetry: 'Телеметрия', test_signal: 'Тест сигнал', reset_history: 'Сброс истории',
+            ai_ready: 'ИИ готов к работе'
+         },
+         en: {
+            title: 'Qolda Glove — Smart Alarm', subtitle: 'Rehabilitation alarm — web interface',
+            not_connected: 'Not connected', connected: 'Connected', connectBtn: 'Connect', disconnectBtn: 'Disconnect',
+            set_now: '+1 min', ai_suggest: 'AI suggest', demo: 'Demo 10s', servo: 'Servo',
+            set_alarm: 'Set alarm', cancel_alarm: 'Cancel', scenarios_title: 'Scenarios',
+            history_title: 'Wake history', device: 'Device', status: 'Status',
+            log_title: 'Log', telemetry: 'Telemetry', test_signal: 'Test signal', reset_history: 'Reset history',
+            ai_ready: 'AI is ready to work'
+         }
+      };
+
+      let LANG = 'ru';
+      let port = null, writer = null, reader = null;
+      let connected = false, keepReading = false;
+      let wakeHistory = JSON.parse(localStorage.getItem('wakeHistory') || '[]');
+      let telemetry = JSON.parse(localStorage.getItem('telemetry') || '[]');
+      let wakeChart = null, telemChart = null;
+      let alarmTimer = null, alarmTarget = null;
+      let scenarioSteps = [];
+      let selectedVoice = null;
+
+      // --- НОВОЕ: очередь отправки и буфер чтения ---
+      let sendQueue = [];
+      let lineBuffer = '';
+      const encoder = new TextEncoder();
+
+      const presets = {
+         soft: { name: 'soft', steps: [{ comp: 'VIBE', dur: 1500 }, { comp: 'HEAT', dur: 1200 }] },
+         strong: { name: 'strong', steps: [{ comp: 'VIBE', dur: 4000 }, { comp: 'SERVO', dur: 3000 }] },
+         therapy: { name: 'therapy', steps: [{ comp: 'SERVO', dur: 2500 }, { comp: 'VIBE', dur: 1800 }] }
+      };
+
+      function t(key) { return I18N[LANG][key] ?? key; }
+      function setLang(lang) {
+         LANG = lang;
+         document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (I18N[LANG] && I18N[LANG][key]) el.textContent = I18N[LANG][key];
+         });
+         document.getElementById('btnSetNow').textContent = t('set_now');
+         document.getElementById('btnAISuggest').textContent = t('ai_suggest');
+         document.getElementById('btnDemo').textContent = t('demo');
+         document.getElementById('btnConnect').textContent = connected ? t('disconnectBtn') : t('connectBtn');
+         document.getElementById('btnTest').textContent = t('test_signal');
+         document.getElementById('btnReset').textContent = t('reset_history');
+      }
+      document.getElementById('lang').addEventListener('change', (e) => { setLang(e.target.value); localStorage.setItem('qg_lang', e.target.value); });
+      const savedLang = localStorage.getItem('qg_lang'); if (savedLang) document.getElementById('lang').value = savedLang; setLang(document.getElementById('lang').value);
+
+      function pushLog(txt) {
+         const el = document.getElementById('log');
+         el.textContent = `[${new Date().toLocaleTimeString()}] ${txt}\n` + el.textContent;
+      }
+
+      setInterval(() => {
+         const now = new Date();
+         document.getElementById('clock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+         document.getElementById('now').textContent = now.toLocaleString();
+         if (alarmTarget) {
+            const total = alarmTarget - (window.alarmStart || Date.now());
+            const left = alarmTarget - Date.now();
+            const p = total > 0 ? Math.max(0, Math.min(100, 100 * (1 - left / total))) : 0;
+            document.getElementById('progressBar').style.width = p + '%';
+         }
+      }, 1000);
+
+      function initCharts() {
+         const ctx = document.getElementById('wakeChart').getContext('2d');
+         wakeChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+               labels: [], datasets: [
+                  { label: 'Quick', data: [], backgroundColor: '#22c55e' },
+                  { label: 'Ignored', data: [], backgroundColor: '#ff6b6b' },
+                  { label: 'Tired', data: [], backgroundColor: '#7aa2ff' }
+               ]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+         });
+         const ctx2 = document.getElementById('telemetryChart').getContext('2d');
+         telemChart = new Chart(ctx2, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Telemetry', data: [], borderColor: '#06b6d4', tension: 0.2, fill: false }] },
+            options: { responsive: true, plugins: { legend: { display: true } } }
+         });
+         updateCharts();
+      }
+
+      function updateCharts(rangeDays = 30) {
+         const now = new Date();
+         const cutoff = new Date(now.getTime() - rangeDays * 24 * 3600 * 1000);
+         const bins = {};
+         wakeHistory.forEach(h => {
+            const d = new Date(h.time);
+            if (d < cutoff) return;
+            const key = d.toISOString().slice(0, 10);
+            if (!bins[key]) bins[key] = { quick: 0, ignored: 0, tired: 0 };
+            const s = (h.outcome || '').toLowerCase();
+            if (/quick|быстр/i.test(s)) bins[key].quick++;
+            else if (/ignore|игнор/i.test(s)) bins[key].ignored++;
+            else bins[key].tired++;
+         });
+         const labels = Object.keys(bins).sort();
+         wakeChart.data.labels = labels;
+         wakeChart.data.datasets[0].data = labels.map(l => bins[l].quick);
+         wakeChart.data.datasets[1].data = labels.map(l => bins[l].ignored);
+         wakeChart.data.datasets[2].data = labels.map(l => bins[l].tired);
+         wakeChart.update();
+
+         const tlabels = telemetry.slice(-100).map(x => new Date(x.time).toLocaleTimeString());
+         const tdata = telemetry.slice(-100).map(x => x.value);
+         telemChart.data.labels = tlabels;
+         telemChart.data.datasets[0].data = tdata;
+         telemChart.update();
+      }
+
+      /* ===== Web Serial: connect/read/write (improved) ===== */
+      async function connectSerial() {
+         try {
+            if (!('serial' in navigator)) { alert(LANG === 'ru' ? 'Ваш браузер не поддерживает Web Serial API. Используй Chrome/Edge.' : 'Your browser does not support Web Serial API. Use Chrome/Edge.'); return; }
+            port = await navigator.serial.requestPort();
+            await openPort();
+         } catch (e) { pushLog('Ошибка доступа к порту: ' + (e?.message || e)); }
+      }
+
+      async function openPort() {
+         try {
+            await port.open({ baudRate: 9600 });
+            setConnected(true);
+            pushLog('Порт открыт');
+
+            // Writer: используем TextEncoderStream если возможно (пишем строки)
+            if (window.TextEncoderStream) {
+               const te = new TextEncoderStream();
+               // pipe readable (encoded Uint8Array) to port.writable
+               te.readable.pipeTo(port.writable);
+               writer = te.writable.getWriter(); // пишем строки в te.writable
+            } else {
+               // fallback — пишем raw Uint8Array в порт
+               const rawWriter = port.writable.getWriter();
+               writer = {
+                  write: async (str) => { const data = encoder.encode(str); await rawWriter.write(data); },
+                  close: async () => { try { await rawWriter.close(); } catch (e) { } }
+               };
+            }
+
+            // Reader: используем TextDecoderStream если возможно (получаем строки)
+            if (window.TextDecoderStream) {
+               const td = new TextDecoderStream();
+               port.readable.pipeTo(td.writable);
+               reader = td.readable.getReader();
+            } else {
+               reader = port.readable.getReader();
+            }
+
+            keepReading = true;
+            // очистим буфер
+            lineBuffer = '';
+            readLoop();
+            startAutoReconnect();
+
+            // flush any queued sends
+            flushSendQueue();
+
+            speak(t('ai_ready'));
+         } catch (e) { pushLog('Не удалось открыть порт: ' + (e?.message || e)); setConnected(false); }
+      }
+
+      async function readLoop() {
+         try {
+            while (keepReading && reader) {
+               const { value, done } = await reader.read();
+               if (done) break;
+               let chunk = '';
+               if (typeof value === 'string') chunk = value;
+               else if (value instanceof Uint8Array) {
+                  try { chunk = new TextDecoder().decode(value); } catch (e) { chunk = ''; }
+               } else if (value != null) {
+                  chunk = String(value);
+               }
+               if (!chunk) continue;
+               // накапливаем и разбиваем по строкам
+               lineBuffer += chunk;
+               const parts = lineBuffer.split(/\r?\n/);
+               lineBuffer = parts.pop(); // последний элемент — частичный фрагмент
+               for (const p of parts) {
+                  const line = String(p || '').trim();
+                  if (line) processSerialLine(line);
+               }
+            }
+         } catch (e) {
+            pushLog('Ошибка чтения: ' + (e?.message || e));
+            await cleanupSerial();
+            setTimeout(() => attemptAutoOpen(), 1500);
+         }
+      }
+
+      // Универсальная обработка строки от Arduino
+      function processSerialLine(line) {
+         if (!line) return;
+         pushLog('← ' + line);
+
+         const up = line.toUpperCase();
+
+         // STATE:SERVO:VALUE
+         if (up.startsWith('STATE:')) {
+            const parts = line.split(':');
+            const comp = (parts[1] || '').trim();
+            const val = (parts[2] || '').trim();
+            if (comp.toUpperCase() === 'SERVO') document.getElementById('stServo').textContent = 'Servo: ' + val;
+            return;
+         }
+
+         // TELE:...  (телеметрия)
+         if (up.startsWith('TELE:')) {
+            const parts = line.split(':');
+            // ищем числовое значение в части после TELE
+            const maybe = parts.slice(1).join(':').trim();
+            const val = parseFloat(maybe);
+            if (!isNaN(val)) {
+               telemetry.push({ time: new Date().toISOString(), value: val });
+               if (telemetry.length > 2000) telemetry.shift();
+               localStorage.setItem('telemetry', JSON.stringify(telemetry));
+               updateCharts();
+            }
+            return;
+         }
+
+         // UNO_READY
+         if (up.includes('UNO_READY')) {
+            pushLog('UNO_READY');
+            return;
+         }
+
+         // Серво активация: ловим разные форматы: SERVO_ON:17000, SERVOON17000, ServoOn, SERVO:ON:17000
+         const servoOnRegex = /SERVO(?:[_\s:-]*)?ON(?:[_\s:]*(\d+))?/i;
+         const servoSimpleRegex = /^(SERVO)(?:[_\s:]*)(\d+)?$/i;
+         let m = line.match(servoOnRegex) || line.match(servoSimpleRegex);
+         if (m) {
+            const dur = m[1] ? parseInt(m[1]) : (m[2] ? parseInt(m[2]) : null);
+            document.getElementById('stServo').textContent = 'Servo: ON' + (dur ? ` (${dur} ms)` : '');
+            pushLog('Servo activated' + (dur ? ' for ' + dur + ' ms' : ''));
+            return;
+         }
+
+         // Серво остановлен
+         if (/SERVO(?:[_\s:-]*)?(OFF|STOP|DONE)/i.test(up)) {
+            document.getElementById('stServo').textContent = 'Servo: —';
+            pushLog('Servo stopped');
+            return;
+         }
+
+         // Если приходит просто "SERVO_ON" без числа — отметим
+         if (/^SERVO_ON$/i.test(up) || /^SERVOON$/i.test(up)) {
+            document.getElementById('stServo').textContent = 'Servo: ON';
+            pushLog('Servo activated (no duration)');
+            return;
+         }
+      }
+
+      // Надёжная отправка: очередь + flush
+      async function flushSendQueue() {
+         if (!writer) return;
+         while (sendQueue.length) {
+            const cmd = sendQueue.shift();
+            try {
+               await writer.write(cmd + '\n');
+               pushLog('→ ' + cmd + ' (queued)');
+            } catch (e) {
+               pushLog('Ошибка отправки queued: ' + (e?.message || e));
+               // вернуть команду и выйти — попробуем позже
+               sendQueue.unshift(cmd);
+               break;
+            }
+         }
+      }
+
+      async function sendRaw(cmd) {
+         if (!cmd) return;
+         if (!writer || !connected) {
+            // буферизуем команду — отправится после подключения
+            sendQueue.push(cmd);
+            pushLog('Добавлено в очередь (нет соединения): ' + cmd);
+            return;
+         }
+         try {
+            // сначала слить очередь
+            await flushSendQueue();
+            // отправить текущую
+            await writer.write(cmd + '\n');
+            pushLog('→ ' + cmd);
+         } catch (e) {
+            pushLog('Ошибка отправки: ' + (e?.message || e));
+            // буферизуем на случай ошибки
+            sendQueue.push(cmd);
+         }
+      }
+
+      async function cleanupSerial() {
+         keepReading = false;
+         try { if (reader) { await reader.cancel(); reader = null; } } catch (e) { }
+         try { if (writer && writer.close) await writer.close(); writer = null; } catch (e) { writer = null; }
+         try { if (port) { await port.close(); port = null; } } catch (e) { port = null; }
+         setConnected(false);
+      }
+
+      let autoReconnectInterval = null;
+      function startAutoReconnect() {
+         if (autoReconnectInterval) clearInterval(autoReconnectInterval);
+         autoReconnectInterval = setInterval(async () => {
+            if (connected) return;
+            try {
+               const ports = await navigator.serial.getPorts();
+               if (ports.length > 0 && !port) {
+                  port = ports[0];
+                  pushLog('Найден порт — пробую открыть');
+                  await openPort();
+               }
+            } catch (e) { }
+         }, 3000);
+      }
+      function attemptAutoOpen() { startAutoReconnect(); }
+
+      function setConnected(v) {
+         connected = !!v;
+         document.getElementById('connState').textContent = connected ? t('connected') : t('not_connected');
+         document.getElementById('btnConnect').textContent = connected ? t('disconnectBtn') : t('connectBtn');
+         document.getElementById('deviceStatus').textContent = connected ? 'Active' : 'Not connected';
+         document.getElementById('deviceName').textContent = connected ? 'Arduino Uno (USB)' : '—';
+      }
+
+      /* ===== Alarm scheduling & firing ===== */
+      document.getElementById('btnConnect').addEventListener('click', async () => {
+         if (!connected) await connectSerial(); else await cleanupSerial();
+      });
+      document.getElementById('btnSetNow').addEventListener('click', () => {
+         const now = new Date(Date.now() + 60000); document.getElementById('alarmTime').value = now.toTimeString().slice(0, 5);
+      });
+      document.getElementById('btnDemo').addEventListener('click', () => {
+         const now = new Date(Date.now() + 10000); document.getElementById('alarmTime').value = now.toTimeString().slice(0, 5); document.getElementById('setAlarm').click();
+      });
+
+      document.getElementById('setAlarm').addEventListener('click', () => {
+         const time = document.getElementById('alarmTime').value;
+         if (!time) { alert(LANG === 'ru' ? 'Выбери время' : 'Choose time'); return; }
+         const [hh, mm] = time.split(':').map(n => parseInt(n));
+         const now = new Date(), target = new Date();
+         target.setHours(hh, mm, 0, 0);
+         if (target <= now) target.setDate(target.getDate() + 1);
+         if (alarmTimer) clearTimeout(alarmTimer);
+         alarmTimer = setTimeout(() => alarmFire(), target - now);
+         window.alarmStart = Date.now();
+         alarmTarget = target.getTime();
+         pushLog((LANG === 'ru' ? 'Будильник установлен на ' : 'Alarm set for ') + target.toLocaleString());
+         document.getElementById('setAlarm').style.display = 'none';
+         document.getElementById('cancelAlarm').style.display = 'inline-block';
+      });
+
+      document.getElementById('cancelAlarm').addEventListener('click', () => {
+         if (alarmTimer) clearTimeout(alarmTimer);
+         alarmTimer = null; alarmTarget = null;
+         document.getElementById('setAlarm').style.display = 'inline-block';
+         document.getElementById('cancelAlarm').style.display = 'none';
+         pushLog(LANG === 'ru' ? 'Будильник отменён' : 'Alarm cancelled');
+      });
+
+      async function alarmFire() {
+         pushLog('БУДИЛЬНИК! Срабатывание...');
+         document.getElementById('aiBox').textContent = LANG === 'ru' ? 'ИИ: Запуск сценария...' : 'AI: running scenario...';
+         const scenario = await predictScenario();
+         pushLog('Выбран сценарий: ' + scenario.name);
+         for (const step of scenario.steps) {
+            const comp = step.comp;
+            // ограничиваем длительность, но позволяем до 30000 (30s)
+            const dur = Math.min(Math.max(step.dur || 0, 0), 30000);
+            await sendRaw(`${comp}_ON:${dur}`);
+            await new Promise(r => setTimeout(r, dur + 300));
+         }
+         const outcome = prompt(LANG === 'ru' ? 'Как прошло пробуждение? (quick / ignored / tired)' : 'How did wake go? (quick / ignored / tired)', 'quick') || '';
+         wakeHistory.unshift({ time: new Date().toISOString(), outcome });
+         if (wakeHistory.length > 365) wakeHistory.pop();
+         localStorage.setItem('wakeHistory', JSON.stringify(wakeHistory));
+         updateCharts();
+         try { if (window.tfModelReady && typeof tfOnlineUpdate === 'function') await tfOnlineUpdate(outcome); } catch (e) { }
+         document.getElementById('aiBox').textContent = LANG === 'ru' ? 'ИИ: Готов.' : 'AI: Ready.';
+         document.getElementById('setAlarm').style.display = 'inline-block';
+         document.getElementById('cancelAlarm').style.display = 'none';
+      }
+
+      /* ===== Scenarios (presets and editor) ===== */
+      document.querySelectorAll('[data-scenario]').forEach(b => {
+         b.addEventListener('click', () => {
+            const key = b.getAttribute('data-scenario');
+            const sc = presets[key];
+            scenarioSteps = JSON.parse(JSON.stringify(sc.steps));
+            renderScenario();
+            pushLog('Выбран пресет: ' + key);
+         });
+      });
+
+      document.getElementById('addStep').addEventListener('click', () => {
+         const comp = document.getElementById('componentSelect').value;
+         const dur = parseInt(document.getElementById('durationInput').value || '0');
+         if (!dur || dur <= 0) return alert(LANG === 'ru' ? 'Введите длительность в миллисекундах' : 'Enter duration in ms');
+         scenarioSteps.push({ comp, dur });
+         renderScenario();
+      });
+      document.getElementById('runScenario').addEventListener('click', async () => {
+         if (scenarioSteps.length === 0) return alert(LANG === 'ru' ? 'Сценарий пуст' : 'Scenario empty');
+         for (const s of scenarioSteps) {
+            await sendRaw(`${s.comp}_ON:${Math.min(s.dur, 30000)}`);
+            await new Promise(r => setTimeout(r, s.dur + 300));
+         }
+      });
+      document.getElementById('saveScenario').addEventListener('click', () => {
+         localStorage.setItem('customScenario', JSON.stringify(scenarioSteps));
+         pushLog('Сценарий сохранён');
+      });
+      function renderScenario() {
+         const el = document.getElementById('scenarioList');
+         el.innerText = scenarioSteps.map((s, i) => `${i + 1}. ${s.comp} (${s.dur} ms)`).join('\n');
+      }
+      const saved = JSON.parse(localStorage.getItem('customScenario') || '[]');
+      if (saved.length) { scenarioSteps = saved; renderScenario(); }
+
+      /* Chart ranges */
+      document.getElementById('range7').addEventListener('click', () => updateCharts(7));
+      document.getElementById('range30').addEventListener('click', () => updateCharts(30));
+      document.getElementById('rangeAll').addEventListener('click', () => updateCharts(365));
+
+      /* ===== AI Ассистент (остается как в коде) ===== */
+      function addChatMessage(message, isUser = false) {
+         const chatMessages = document.getElementById('chatMessages');
+         const messageDiv = document.createElement('div');
+         messageDiv.className = isUser ? 'message user-message' : 'message ai-message';
+         messageDiv.textContent = (isUser ? 'Вы: ' : 'Ассистент: ') + message;
+         chatMessages.appendChild(messageDiv);
+         chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function getStats() {
+         const total = wakeHistory.length;
+         const success = wakeHistory.filter(h => /quick|быстр/i.test(h.outcome)).length;
+         const ignored = wakeHistory.filter(h => /ignore|игнор/i.test(h.outcome)).length;
+         const percent = total ? Math.round((success / total) * 100) : 0;
+         const avgReaction = (telemetry.length ? (telemetry.slice(-100).reduce((s, x) => s + x.value, 0) / Math.min(telemetry.length, 100)).toFixed(1) : '—');
+         return { total, success, ignored, percent, avgReaction };
+      }
+
+      const KNOWLEDGE = {
+         ru: {
+            greetings: ['привет', 'здравствуй', 'здравствуйте', 'hello'],
+            about: [
+               ['qolda', 'Qolda Glove — это умная реабилитационная перчатка, которая помогает улучшать моторику руки с помощью управляемых сервоприводов, вибрации и нагрева.'],
+               ['дцп', 'ДЦП (детский церебральный паралич) — это группа неврологических нарушений, влияющих на движение и координацию; обычно связаны с повреждением мозга в раннем возрасте.'],
+               ['реабилитация', 'Реабилитация включает регулярные упражнения, направленные на восстановление функции руки; Qolda помогает автоматизировать и отслеживать процесс.'],
+               ['как пользоваться', 'Наденьте перчатку, подключите через USB, откройте веб-интерфейс и следуйте напоминаниям. Можно создавать сценарии и отслеживать историю.']
+            ],
+            tech: [
+               ['подключ', 'Для подключения используйте Web Serial (Chrome/Edge). Нажмите «Подключить» и выберите ваше устройство.'],
+               ['телеметр', 'Телеметрия показывает данные датчиков (время, сила, температура) и сохраняется в браузере.'],
+               ['заряд', 'Рекомендуется зарядка перед длительной сессией; ориентировочное время работы зависит от батареи (см. документацию устройства).']
+            ],
+            therapy: [
+               ['сценарий', 'Доступные сценарии: Мягкий старт, Интенсивный, Терапевтический. Их можно редактировать и сохранять.'],
+               ['будильник', 'Умный будильник адаптируется к вашей реакции: мягкий режим при быстрой реакции, более интенсивный при игнорировании.']
+            ]
+         },
+         en: {
+            greetings: ['hello', 'hi'],
+            about: [
+               ['qolda', 'Qolda Glove is a smart rehabilitation glove that helps improve hand motor skills using servos, vibration and heating.'],
+               ['cerebral palsy', 'Cerebral palsy (CP) is a group of neurological disorders affecting movement and coordination, usually due to early brain injury.'],
+               ['rehabilitation', 'Rehabilitation involves regular exercises to restore hand function; Qolda helps automate and monitor the process.'],
+               ['how to use', 'Put on the glove, connect via USB, open the web interface and follow reminders. You can create scenarios and track history.']
+            ],
+            tech: [
+               ['connect', 'Use Web Serial (Chrome/Edge). Press "Connect" and choose your device.'],
+               ['telemetry', 'Telemetry shows sensor data (time, magnitude, temperature) and is stored in the browser.'],
+               ['battery', 'Charge before long sessions; battery life depends on the specific hardware.']
+            ],
+            therapy: [
+               ['scenario', 'Available scenarios: Soft start, Intensive, Therapeutic. You can edit and save them.'],
+               ['alarm', 'The smart alarm adapts to your reaction: soft if you react quickly, stronger if ignored.']
+            ]
+         }
+      };
+
+      function answerFromKnowledge(q) {
+         const dict = KNOWLEDGE[LANG];
+         if (!dict) return null;
+         // greetings
+         for (const g of dict.greetings) if (q.includes(g)) return LANG === 'ru' ? 'Здравствуйте! Я ваш ассистент Qolda. Чем могу помочь?' : 'Hello! I am your Qolda assistant. How can I help?';
+         // about, tech, therapy groups
+         for (const group of ['about', 'tech', 'therapy']) {
+            for (const item of dict[group]) {
+               if (q.includes(item[0])) return item[1];
+            }
+         }
+         return null;
+      }
+
+      function handleAIQuestion(question) {
+         const q = question.toLowerCase();
+         if (!q.trim()) return LANG === 'ru' ? 'Задайте вопрос.' : 'Please ask a question.';
+
+         const k = answerFromKnowledge(q);
+         if (k) return k;
+
+         // status / connection
+         if (q.includes('статус') || q.includes('status')) return connected ? (LANG === 'ru' ? 'Устройство подключено и готово.' : 'Device is connected and ready.') : (LANG === 'ru' ? 'Устройство не подключено.' : 'Device is not connected.');
+
+         // sessions / stats
+         if ((q.includes('сколько') && q.includes('трен')) || q.includes('how many sessions') || (q.includes('sessions') && q.includes('how many'))) {
+            const s = getStats();
+            return LANG === 'ru' ? `Выполнено ${s.success} из ${s.total} занятий (${s.percent}%).` : `Completed ${s.success} of ${s.total} sessions (${s.percent}%).`;
+         }
+         if (q.includes('пропущ') || q.includes('missed')) {
+            const s = getStats();
+            return LANG === 'ru' ? `Пропущено: ${s.ignored} занятий.` : `Missed: ${s.ignored} sessions.`;
+         }
+         if (q.includes('процент') || q.includes('success rate') || q.includes('progress')) {
+            const s = getStats();
+            return LANG === 'ru' ? `Процент выполнения: ${s.percent}%. Среднее время реакции: ${s.avgReaction}.` : `Completion rate: ${s.percent}%. Avg reaction: ${s.avgReaction}.`;
+         }
+         if (q.includes('история') || q.includes('history') || q.includes('wake history')) {
+            const s = getStats();
+            return LANG === 'ру' ? `Всего записей: ${s.total}. Успешных: ${s.success}. Пропущенных: ${s.ignored}.` : `Total records: ${s.total}. Success: ${s.success}. Missed: ${s.ignored}.`;
+         }
+
+         // advice
+         if (q.includes('совет') || q.includes('advice') || q.includes('tip')) {
+            const s = getStats();
+            if (s.ignored > 2) return LANG === 'ru' ? 'Мы видим много пропусков: снизьте интенсивность или смените время тренировок.' : 'We see many missed sessions: reduce intensity or try a different schedule.';
+            if (s.percent >= 80) return LANG === 'ru' ? 'Отлично — продолжайте в том же духе.' : 'Great job — keep it up.';
+            return LANG === 'ru' ? 'Старайтесь заниматься в одно и то же время — это помогает выработать привычку.' : 'Try to train at the same time each day — consistency helps form a habit.';
+         }
+
+         // alarm controls
+         if (q.includes('установи будильник') || q.includes('set alarm') || q.includes('set the alarm')) {
+            document.getElementById('btnSetNow').click();
+            return LANG === 'ru' ? 'Готово — будильник установлен через 1 минуту.' : 'Done — alarm is set for 1 minute from now.';
+         }
+
+         // calculation examples (simple)
+         if (q.includes('среднее') || q.includes('average')) {
+            const nums = (q.match(/-?\d+(\.\d+)?/g) || []).map(n => parseFloat(n));
+            if (nums.length) {
+               const avg = (nums.reduce((s, x) => s + x, 0) / nums.length).toFixed(1);
+               return LANG === 'ру' ? `Среднее значение: ${avg}` : `Average: ${avg}`;
+            } else return LANG === 'ru' ? 'Укажите числа для расчёта среднего.' : 'Please provide numbers to calculate average.';
+         }
+
+         // motivational / small talk
+         if (q.includes('мотива') || q.includes('motivat')) return LANG === 'ru' ? 'Каждое занятие важно — даже маленький прогресс складывается в результат.' : 'Every session matters — small progress adds up over time.';
+
+         // fallback
+         return LANG === 'ru' ? 'Извините, я не совсем понял. Попробуйте спросить иначе или спросите "помощь".' : 'Sorry, I did not understand. Try rephrasing or ask "help".';
+      }
+
+      document.getElementById('sendMessage').addEventListener('click', () => {
+         const input = document.getElementById('chatInput');
+         const question = input.value.trim();
+         if (!question) return;
+         addChatMessage(question, true);
+         input.value = '';
+         setTimeout(() => {
+            const response = handleAIQuestion(question);
+            addChatMessage(response, false);
+            speak(response);
+         }, 250);
+      });
+
+      document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') document.getElementById('sendMessage').click(); });
+
+      async function predictScenario() {
+         try {
+            if (window.tfModelReady && typeof tfPredictScenario === 'function') {
+               const r = await tfPredictScenario();
+               if (r && r.mode) {
+                  if (r.mode === 'aggressive') return presets.strong;
+                  if (r.mode === 'gentle') return presets.soft;
+               }
+            }
+         } catch (e) { pushLog('TF predict failed, fallback to rule'); }
+         const recent = wakeHistory.slice(0, 10);
+         const ignored = recent.filter(x => /ignore|игнор/i.test(x.outcome)).length;
+         const quick = recent.filter(x => /quick|быстр/i.test(x.outcome)).length;
+         if (ignored >= 2) return presets.strong;
+         if (quick >= 2) return presets.soft;
+         return presets.therapy;
+      }
+
+      async function buildTFModelSafe() {
+         if (!window.tf) { pushLog('TensorFlow.js not found — using rule-based AI'); return; }
+         try {
+            const model = tf.sequential();
+            model.add(tf.layers.dense({ units: 12, inputShape: [3], activation: 'relu' }));
+            model.add(tf.layers.dense({ units: 8, activation: 'relu' }));
+            model.add(tf.layers.dense({ units: 3, activation: 'softmax' }));
+            model.compile({ optimizer: tf.train.adam(0.01), loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
+            window.tfModel = model; window.tfModelReady = true;
+            pushLog('TF.js модель инициализирована (опционально)');
+         } catch (e) { pushLog('Ошибка TF init: ' + e); window.tfModelReady = false; }
+      }
+
+      function chooseVoice() {
+         const voices = speechSynthesis.getVoices() || [];
+         const pref = voices.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith(LANG === 'ru' ? 'ru' : 'en')) ||
+            voices.find(v => v.lang.startsWith(LANG === 'ru' ? 'ru' : 'en')) || voices[0];
+         selectedVoice = pref || null;
+      }
+
+      function speak(text) {
+         try {
+            if (!selectedVoice) chooseVoice();
+            const u = new SpeechSynthesisUtterance(text);
+            if (selectedVoice) u.voice = selectedVoice;
+            u.lang = LANG === 'ru' ? 'ru-RU' : 'en-US';
+            const box = document.getElementById('aiBox');
+            box.classList.add('speaking');
+            u.onend = () => box.classList.remove('speaking');
+            speechSynthesis.speak(u);
+         } catch (e) { pushLog('TTS error: ' + e); }
+      }
+      speechSynthesis.onvoiceschanged = chooseVoice;
+
+      document.getElementById('btnTest').addEventListener('click', async () => {
+         pushLog('Отправляю тестовый сигнал');
+         await sendRaw('SERVO_ON:600');
+      });
+
+      document.getElementById('btnReset').addEventListener('click', () => {
+         if (!confirm(LANG === 'ru' ? 'Сбросить историю пробуждений?' : 'Reset wake history?')) return;
+         wakeHistory = []; localStorage.removeItem('wakeHistory'); updateCharts(); pushLog('История очищена');
+      });
+
+      window.addEventListener('load', async () => {
+         initCharts();
+         updateCharts();
+         try { await buildTFModelSafe(); } catch (e) { }
+         wakeHistory = JSON.parse(localStorage.getItem('wakeHistory') || '[]');
+         updateCharts();
+         pushLog('Интерфейс готов.');
+         addChatMessage(LANG === 'ru' ? 'Система инициализирована. Готов к работе!' : 'System initialized. Ready to work!', false);
+      });
+
+      window.addEventListener('beforeunload', async () => { await cleanupSerial(); });
+   </script>
+</body>
+
+</html>
